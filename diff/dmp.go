@@ -37,7 +37,6 @@ const (
 	DiffDelete = -1
 	DiffInsert = 1
 	DiffEqual  = 0
-	max64      = int64(uint64(1<<63) - 1)
 )
 
 // unescaper unescapes selected chars for compatability with JavaScript's encodeURI.
@@ -199,24 +198,17 @@ func New() *DiffMatchPatch {
 }
 
 // DiffMain finds the differences between two texts.
-func (dmp *DiffMatchPatch) DiffMain(text1 string, text2 string, opt ...interface{}) []Diff {
-	checklines := true
-	var deadline int64
-
-	if opt != nil && len(opt) > 0 {
-		checklines = opt[0].(bool)
-
-		if len(opt) > 1 {
-			deadline = opt[1].(int64)
-		} else {
-			if dmp.DiffTimeout <= 0 {
-				deadline = max64
-			} else {
-				deadline = int64(int64(time.Now().Unix()) + int64(dmp.DiffTimeout*1000))
-			}
-		}
+func (dmp *DiffMatchPatch) DiffMain(text1, text2 string, checklines bool) []Diff {
+	var deadline int64 = math.MaxInt64
+	if dmp.DiffTimeout > 0 {
+		deadline = int64(time.Now().Unix()) + int64(dmp.DiffTimeout*1000)
 	}
 
+	return dmp.diffMain(text1, text2, checklines, deadline)
+}
+
+// DiffMain finds the differences between two texts.
+func (dmp *DiffMatchPatch) diffMain(text1, text2 string, checklines bool, deadline int64) []Diff {
 	diffs := []Diff{}
 	if text1 == text2 {
 		if len(text1) > 0 {
@@ -306,8 +298,8 @@ func (dmp *DiffMatchPatch) diffCompute(text1 string, text2 string, checklines bo
 		text2_b := hm[3]
 		mid_common := hm[4]
 		// Send both pairs off for separate processing.
-		diffs_a := dmp.DiffMain(text1_a, text2_a, checklines, deadline)
-		diffs_b := dmp.DiffMain(text1_b, text2_b, checklines, deadline)
+		diffs_a := dmp.diffMain(text1_a, text2_a, checklines, deadline)
+		diffs_b := dmp.diffMain(text1_b, text2_b, checklines, deadline)
 		// Merge the results.
 		return append(diffs_a, append([]Diff{Diff{DiffEqual, mid_common}}, diffs_b...)...)
 	} else if checklines && utf8.RuneCountInString(text1) > 100 && utf8.RuneCountInString(text2) > 100 {
@@ -322,7 +314,7 @@ func (dmp *DiffMatchPatch) diffLineMode(text1 string, text2 string, deadline int
 	// Scan the text on a line-by-line basis first.
 	text1, text2, linearray := dmp.DiffLinesToChars(text1, text2)
 
-	diffs := dmp.DiffMain(text1, text2, false, deadline)
+	diffs := dmp.diffMain(text1, text2, false, deadline)
 
 	// Convert the diff back to original text.
 	diffs = dmp.DiffCharsToLines(diffs, linearray)
@@ -359,7 +351,7 @@ func (dmp *DiffMatchPatch) diffLineMode(text1 string, text2 string, deadline int
 					count_delete+count_insert)
 
 				pointer = pointer - count_delete - count_insert
-				a := dmp.DiffMain(text_delete, text_insert, false, deadline)
+				a := dmp.diffMain(text_delete, text_insert, false, deadline)
 				for j := len(a) - 1; j >= 0; j-- {
 					diffs = splice(diffs, pointer, 0, a[j])
 				}
@@ -500,8 +492,8 @@ func (dmp *DiffMatchPatch) diffBisectSplit_(text1, text2 []rune, x, y int, deadl
 	text2b := string(text2[y:])
 
 	// Compute both diffs serially.
-	diffs := dmp.DiffMain(text1a, text2a, false, deadline)
-	diffsb := dmp.DiffMain(text1b, text2b, false, deadline)
+	diffs := dmp.diffMain(text1a, text2a, false, deadline)
+	diffsb := dmp.diffMain(text1b, text2b, false, deadline)
 
 	return append(diffs, diffsb...)
 }

@@ -893,7 +893,7 @@ func Test_diffMain(t *testing.T) {
 	}
 	startTime := time.Now().Unix()
 	startTime *= 1000
-	dmp.DiffMain(a, b)
+	dmp.DiffMain(a, b, true)
 	endTime := time.Now().Unix()
 	endTime *= 1000
 	// Test that we took at least the timeout period.
