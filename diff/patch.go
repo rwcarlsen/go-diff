@@ -12,6 +12,63 @@ import (
 	"net/url"
 )
 
+// Patch represents one patch operation.
+type Patch struct {
+	diffs   []Diff
+	start1  int
+	start2  int
+	length1 int
+	length2 int
+}
+
+// String emulates GNU diff's format.
+// Header: @@ -382,8 +481,9 @@
+// Indicies are printed as 1-based, not 0-based.
+func (patch *Patch) String() string {
+	var coords1, coords2 string
+	start1 := int64(patch.start1)
+	start2 := int64(patch.start2)
+
+	if patch.length1 == 0 {
+		coords1 = strconv.FormatInt(start1, 10) + ",0"
+	} else if patch.length1 == 1 {
+		coords1 = strconv.FormatInt(start1+1, 10)
+	} else {
+		coords1 = strconv.FormatInt(start1+1, 10) + "," + strconv.FormatInt(int64(patch.length1), 10)
+	}
+
+	if patch.length2 == 0 {
+		coords2 = strconv.FormatInt(start2, 10) + ",0"
+	} else if patch.length2 == 1 {
+		coords2 = strconv.FormatInt(start2+1, 10)
+	} else {
+		coords2 = strconv.FormatInt(start2+1, 10) + "," + strconv.FormatInt(int64(patch.length2), 10)
+	}
+
+	var text bytes.Buffer
+	text.WriteString("@@ -" + coords1 + " +" + coords2 + " @@\n")
+
+	// Escape the body of the patch with %xx notation.
+	for _, aDiff := range patch.diffs {
+		switch aDiff.Type {
+		case DiffInsert:
+			text.WriteString("+")
+			break
+		case DiffDelete:
+			text.WriteString("-")
+			break
+		case DiffEqual:
+			text.WriteString(" ")
+			break
+		}
+
+		text.WriteString(strings.Replace(url.QueryEscape(aDiff.Text), "+", " ", -1))
+		text.WriteString("\n")
+	}
+
+	return unescaper.Replace(text.String())
+}
+
 // PatchAddContext increases the context until it is unique,
 // but doesn't let the pattern expand beyond MatchMaxBits.
 func (dmp *DiffMatchPatch) PatchAddContext(patch Patch, text string) Patch {

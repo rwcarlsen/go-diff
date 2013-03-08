@@ -73,22 +73,15 @@ func splice_patch(slice []Patch, index int, amount int, elements ...Patch) []Pat
 func indexOf(str string, pattern string, i int) int {
 	if i > len(str)-1 {
 		return -1
-	}
-
-	if i == 0 {
+	} else if i == 0 {
 		return strings.Index(str, pattern)
 	}
 
-	str1 := str[0:i]
-	str2 := str[i:]
-
-	ind := strings.Index(str2, pattern)
+	ind := strings.Index(str[i:], pattern)
 	if ind == -1 {
 		return -1
 	}
-
-	return ind + len(str1)
-
+	return ind + i
 }
 
 type DiffMatchPatch struct {
@@ -119,69 +112,6 @@ type Diff struct {
 	Text string
 }
 
-type LinesDiff struct {
-	chars1    string
-	chars2    string
-	lineArray []string
-}
-
-// Patch represents one patch operation.
-type Patch struct {
-	diffs   []Diff
-	start1  int
-	start2  int
-	length1 int
-	length2 int
-}
-
-// String emulates GNU diff's format.
-// Header: @@ -382,8 +481,9 @@
-// Indicies are printed as 1-based, not 0-based.
-func (patch *Patch) String() string {
-	var coords1, coords2 string
-	start1 := int64(patch.start1)
-	start2 := int64(patch.start2)
-
-	if patch.length1 == 0 {
-		coords1 = strconv.FormatInt(start1, 10) + ",0"
-	} else if patch.length1 == 1 {
-		coords1 = strconv.FormatInt(start1+1, 10)
-	} else {
-		coords1 = strconv.FormatInt(start1+1, 10) + "," + strconv.FormatInt(int64(patch.length1), 10)
-	}
-
-	if patch.length2 == 0 {
-		coords2 = strconv.FormatInt(start2, 10) + ",0"
-	} else if patch.length2 == 1 {
-		coords2 = strconv.FormatInt(start2+1, 10)
-	} else {
-		coords2 = strconv.FormatInt(start2+1, 10) + "," + strconv.FormatInt(int64(patch.length2), 10)
-	}
-
-	var text bytes.Buffer
-	text.WriteString("@@ -" + coords1 + " +" + coords2 + " @@\n")
-
-	// Escape the body of the patch with %xx notation.
-	for _, aDiff := range patch.diffs {
-		switch aDiff.Type {
-		case DiffInsert:
-			text.WriteString("+")
-			break
-		case DiffDelete:
-			text.WriteString("-")
-			break
-		case DiffEqual:
-			text.WriteString(" ")
-			break
-		}
-
-		text.WriteString(strings.Replace(url.QueryEscape(aDiff.Text), "+", " ", -1))
-		text.WriteString("\n")
-	}
-
-	return unescaper.Replace(text.String())
-}
-
 // New creates a new DiffMatchPatch object with default parameters.
 func New() *DiffMatchPatch {
 	// Defaults.
@@ -206,7 +136,7 @@ func (dmp *DiffMatchPatch) DiffMain(text1, text2 string, checklines bool) []Diff
 	return dmp.diffMain(text1, text2, checklines, deadline)
 }
 
-// DiffMain finds the differences between two texts.
+// diffMain finds the differences between two texts.
 func (dmp *DiffMatchPatch) diffMain(text1, text2 string, checklines bool, deadline int64) []Diff {
 	diffs := []Diff{}
 	if text1 == text2 {
