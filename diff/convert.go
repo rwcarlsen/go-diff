@@ -4,61 +4,58 @@ package diffmatchpatch
 import (
 	"reflect"
 	"bytes"
+	"strings"
 )
 
-type Key map[rune]interface{}
+type Key []interface{}
 
-// ToRunes converts each element in slice1 and slice2 into a rune in s1 and
+// ToChars converts each element in slice1 and slice2 into a rune in s1 and
 // s2.  k maps each rune back to its original value and can be used to
 // hydrate or recover slice elements from one or more runes.
-func ToRunes(slice1, slice2 interface{}) (s1, s2 string, k Key) {
-	var buf1, buf2 bytes.Buffer
-	m := map[interface{}]rune{}
-	k = Key{}
+//
+// Equality must be defined for the slice element types.
+func ToChars(slice1, slice2 interface{}) (s1, s2 string, k Key) {
+	m := map[interface{}]rune{"": 0}
+	k = Key{""}
+	nextInt := 1
 
-	v1 := reflect.ValueOf(slice1)
-	v2 := reflect.ValueOf(slice2)
+	s1, k, nextInt = makeString(m, k, slice1, nextInt)
+	s2, k, nextInt = makeString(m, k, slice2, nextInt)
 
-	nextInt := 0
-	for i := 0; i < v1.Len(); i++ {
-		item := v1.Index(i).Interface()
-		r, ok := m[item]
-		if !ok {
-			r = rune(nextInt)
-			k[r] = item
-			m[item] = r
-			nextInt++
-		}
-
-		buf1.WriteString(string(r))
-	}
-
-	for i := 0; i < v2.Len(); i++ {
-		item := v2.Index(i).Interface()
-		r, ok := m[item]
-		if !ok {
-			r = rune(nextInt)
-			k[r] = item
-			m[item] = r
-			nextInt++
-		}
-
-		buf2.WriteString(string(r))
-	}
-	return buf1.String(), buf2.String(), k
+	return s1, s2, k
 }
 
-func Hydrate(diffs []Diff, hydrated interface{}, k Key, combine func(v ...interface{})interface{}) (ops []int8) {
+func makeString(m map[interface{}]rune, k Key, slice interface{}, nextInt int) (s string, key Key, next int) {
+	var buf bytes.Buffer
+	v := reflect.ValueOf(slice)
+
+	for i := 0; i < v.Len(); i++ {
+		item := v.Index(i).Interface()
+		r, ok := m[item]
+		if !ok {
+			r = rune(nextInt)
+			k = append(k, item)
+			m[item] = r
+			nextInt++
+		}
+
+		buf.WriteString(string(r))
+	}
+	return buf.String(), k, nextInt
+}
+
+// FromChars
+func FromChars(diffs []Diff, hydrated interface{}, k Key, combine func(v ...interface{})interface{}) (ops []int8) {
 	if t := reflect.TypeOf(hydrated).Kind(); t != reflect.Ptr {
 		panic("invalid type for hydrated: " + string(t))
 	}
-	t := reflect.TypeOf(reflect.ValueOf(hydrated).Elem())
+	t := reflect.ValueOf(hydrated).Elem().Type()
 	slice := reflect.MakeSlice(t, 0, len(diffs))
 	ops = make([]int8, 0, len(diffs))
 	for _, d := range diffs {
 		items := []interface{}{}
 		for _, r := range d.Text {
-			items = append(items, k[r])
+			items = append(items, k[int(r)])
 		}
 		if combine != nil {
 			ops = append(ops, d.Type)
@@ -75,5 +72,40 @@ func Hydrate(diffs []Diff, hydrated interface{}, k Key, combine func(v ...interf
 	h := reflect.ValueOf(hydrated)
 	reflect.Indirect(h).Set(slice)
 	return ops
+}
+
+// LinesToChars split two texts into a list of strings.  Reduces the texts to a string of
+// hashes where each Unicode character represents one line.
+func LinesToChars(text1, text2 string) (string, string, Key) {
+	s1 := strings.SplitAfter(text1, "\n")
+	s2 := strings.SplitAfter(text2, "\n")
+	if end := len(s1)-1; len(s1[end]) == 0 {
+		s1 = s1[:end]
+	}
+	if end := len(s2)-1; len(s2[end]) == 0 {
+		s2 = s2[:end]
+	}
+	return ToChars(s1, s2)
+}
+
+// LinesFromChars rehydrates the text in a diff from a string of line hashes to real lines of
+// text.
+func LinesFromChars(diffs []Diff, k Key) []Diff {
+	lines := []string{}
+	FromChars(diffs, &lines, k, combineString)
+	hydrated := make([]Diff, len(diffs))
+	for i, d := range diffs {
+		d.Text = lines[i]
+		hydrated[i] = d
+	}
+	return hydrated
+}
+
+func combineString(vals ...interface{}) interface{} {
+	var buf bytes.Buffer
+	for _, v := range vals {
+		buf.WriteString(v.(string))
+	}
+	return buf.String()
 }
 

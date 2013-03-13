@@ -305,12 +305,12 @@ func (dmp *DiffMatchPatch) diffCompute(text1, text2 string, checklines bool, dea
 // greater accuracy. This speedup can produce non-minimal diffs.
 func (dmp *DiffMatchPatch) diffLineMode(text1, text2 string, deadline time.Time) []Diff {
 	// Scan the text on a line-by-line basis first.
-	text1, text2, linearray := dmp.DiffLinesToChars(text1, text2)
+	text1, text2, linearray := LinesToChars(text1, text2)
 
 	diffs := dmp.diffMain(text1, text2, false, deadline)
 
 	// Convert the diff back to original text.
-	diffs = dmp.DiffCharsToLines(diffs, linearray)
+	diffs = LinesFromChars(diffs, linearray)
 	// Eliminate freak matches (e.g. blank lines)
 	diffs = dmp.DiffCleanupSemantic(diffs)
 
@@ -495,72 +495,6 @@ func (dmp *DiffMatchPatch) diffBisectSplit_(text1, text2 string, x, y int,
 	diffsb := dmp.diffMain(text1b, text2b, false, deadline)
 
 	return append(diffs, diffsb...)
-}
-
-// DiffLinesToChars split two texts into a list of strings.  Reduces the texts to a string of
-// hashes where each Unicode character represents one line.
-func (dmp *DiffMatchPatch) DiffLinesToChars(text1, text2 string) (string, string, []string) {
-	// '\x00' is a valid character, but various debuggers don't like it.
-	// So we'll insert a junk entry to avoid generating a null character.
-	lineArray := []string{""}    // e.g. lineArray[4] == 'Hello\n'
-	lineHash := map[string]int{} // e.g. lineHash['Hello\n'] == 4
-
-	chars1 := dmp.diffLinesToCharsMunge(text1, &lineArray, lineHash)
-	chars2 := dmp.diffLinesToCharsMunge(text2, &lineArray, lineHash)
-
-	return chars1, chars2, lineArray
-}
-
-// diffLinesToCharsMunge splits a text into an array of strings.  Reduces the texts to a string of
-// hashes where each Unicode character represents one line.
-// Modifies linearray and linehash through being a closure.
-func (dmp *DiffMatchPatch) diffLinesToCharsMunge(text string, lineArray *[]string, lineHash map[string]int) string {
-	// Walk the text, pulling out a substring for each line.
-	// text.split('\n') would would temporarily double our memory footprint.
-	// Modifying text would create many large strings to garbage collect.
-	lineStart := 0
-	lineEnd := -1
-	runes := []rune{}
-
-	for lineEnd < len(text)-1 {
-		lineEnd = indexOf(text, "\n", lineStart)
-
-		if lineEnd == -1 {
-			lineEnd = len(text) - 1
-		}
-
-		line := text[lineStart : lineEnd+1]
-		lineStart = lineEnd + 1
-		lineValue_, ok := lineHash[line]
-
-		if ok {
-			runes = append(runes, rune(lineValue_))
-		} else {
-			*lineArray = append(*lineArray, line)
-			lineHash[line] = len(*lineArray) - 1
-			runes = append(runes, rune(len(*lineArray)-1))
-		}
-	}
-
-	return string(runes)
-}
-
-// DiffCharsToLines rehydrates the text in a diff from a string of line hashes to real lines of
-// text.
-func (dmp *DiffMatchPatch) DiffCharsToLines(diffs []Diff, lineArray []string) []Diff {
-	hydrated := make([]Diff, 0, len(diffs))
-	for _, aDiff := range diffs {
-		chars := aDiff.Text
-		text := make([]string, len(chars))
-
-		for i, r := range chars {
-			text[i] = lineArray[r]
-		}
-
-		aDiff.Text = strings.Join(text, "")
-		hydrated = append(hydrated, aDiff)
-	}
-	return hydrated
 }
 
 // DiffCommonPrefix determines the common prefix length of two strings.
