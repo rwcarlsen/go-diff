@@ -35,10 +35,10 @@ func Test_FromChars(t *testing.T) {
 	dmp := New()
 
 	diffs := dmp.DiffMain(s1, s2, true)
-	converted := []int{}
-	ops := FromChars(diffs, &converted, key, nil)
+	diffVals := []int{}
+	ops := FromChars(diffs, &diffVals, key, nil)
 
-	expected := []int8{
+	expOps := []int8{
 		DiffEqual,
 		DiffEqual,
 		DiffDelete,
@@ -46,8 +46,10 @@ func Test_FromChars(t *testing.T) {
 		DiffInsert,
 		DiffEqual,
 	}
+	expVals := []int{1, 2, 3, 4, 3, 5}
 
-	assert.Equal(t, expected, ops)
+	assert.Equal(t, expOps, ops)
+	assert.Equal(t, expVals, diffVals)
 }
 
 func Test_LinesToChars(t *testing.T) {
