@@ -11,7 +11,7 @@ type Key []interface{}
 
 // ToChars converts each element in slice1 and slice2 into a rune in s1 and
 // s2.  k maps each rune back to its original value and can be used to
-// hydrate or recover slice elements from one or more runes.
+// rebuild/recover slice elements from one or more runes.
 //
 // Equality must be defined for the slice element types.
 func ToChars(slice1, slice2 interface{}) (s1, s2 string, k Key) {
@@ -44,7 +44,12 @@ func makeString(m map[interface{}]rune, k Key, slice interface{}, nextInt int) (
 	return buf.String(), k, nextInt
 }
 
-// FromChars
+// FromChars populates hydrated with original diff vals prior to ToChars
+// conversion and returns the corresponding list of diff operations for
+// convenience.  combine is a function combines one or more
+// values into a single value of the same type.  It is used to consolidate
+// multiple consecutive diffs of the same operation.  If combining is not
+// possible for the variable type, pass nil.
 func FromChars(diffs []Diff, hydrated interface{}, k Key, combine func(v ...interface{})interface{}) (ops []int8) {
 	if t := reflect.TypeOf(hydrated).Kind(); t != reflect.Ptr {
 		panic("invalid type for hydrated: " + string(t))
