@@ -1,9 +1,8 @@
-
 package diffmatchpatch
 
 import (
-	"reflect"
 	"bytes"
+	"reflect"
 	"strings"
 )
 
@@ -50,7 +49,7 @@ func makeString(m map[interface{}]rune, k Key, slice interface{}, nextInt int) (
 // values into a single value of the same type.  It is used to consolidate
 // multiple consecutive diffs of the same operation.  If combining is not
 // possible for the variable type, pass nil.
-func FromChars(diffs []Diff, hydrated interface{}, k Key, combine func(v ...interface{})interface{}) (ops []int8) {
+func FromChars(diffs []Diff, hydrated interface{}, k Key, combine func(v ...interface{}) interface{}) (ops []int8) {
 	if t := reflect.TypeOf(hydrated).Kind(); t != reflect.Ptr {
 		panic("invalid type for hydrated: " + string(t))
 	}
@@ -84,10 +83,10 @@ func FromChars(diffs []Diff, hydrated interface{}, k Key, combine func(v ...inte
 func LinesToChars(text1, text2 string) (string, string, Key) {
 	s1 := strings.SplitAfter(text1, "\n")
 	s2 := strings.SplitAfter(text2, "\n")
-	if end := len(s1)-1; len(s1[end]) == 0 {
+	if end := len(s1) - 1; len(s1[end]) == 0 {
 		s1 = s1[:end]
 	}
-	if end := len(s2)-1; len(s2[end]) == 0 {
+	if end := len(s2) - 1; len(s2[end]) == 0 {
 		s2 = s2[:end]
 	}
 	return ToChars(s1, s2)
@@ -113,4 +112,3 @@ func combineString(vals ...interface{}) interface{} {
 	}
 	return buf.String()
 }
-

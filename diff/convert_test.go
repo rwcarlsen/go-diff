@@ -1,4 +1,3 @@
-
 package diffmatchpatch
 
 import (
@@ -75,28 +74,28 @@ func Test_LinesToChars(t *testing.T) {
 
 	// More than 256 to reveal any 8-bit limitations.
 	/*
-	n := 300
-	tmpVector = Key{}
-	lineList := []rune{}
-	charList := []rune{}
+		n := 300
+		tmpVector = Key{}
+		lineList := []rune{}
+		charList := []rune{}
 
-	for x := 1; x < n+1; x++ {
-	    tmpVector = append(tmpVector, string(x)+"\n")
-	    lineList = append(lineList, rune(x), '\n')
-	    charList = append(charList, rune(x))
-	}
-	assert.Equal(t, n, len(tmpVector), "")
+		for x := 1; x < n+1; x++ {
+		    tmpVector = append(tmpVector, string(x)+"\n")
+		    lineList = append(lineList, rune(x), '\n')
+		    charList = append(charList, rune(x))
+		}
+		assert.Equal(t, n, len(tmpVector), "")
 
-	lines := string(lineList)
-	chars := string(charList)
-	assert.Equal(t, n, utf8.RuneCountInString(chars), "")
-	tmpVector = append(tmpVector, "")
+		lines := string(lineList)
+		chars := string(charList)
+		assert.Equal(t, n, utf8.RuneCountInString(chars), "")
+		tmpVector = append(tmpVector, "")
 
-	result0, result1, result2 = LinesToChars(lines, "")
+		result0, result1, result2 = LinesToChars(lines, "")
 
-	assert.Equal(t, chars, result0)
-	assert.Equal(t, "", result1, "")
-	assert.Equal(t, tmpVector, result2)
+		assert.Equal(t, chars, result0)
+		assert.Equal(t, "", result1, "")
+		assert.Equal(t, tmpVector, result2)
 	*/
 }
 
@@ -133,4 +132,3 @@ func Test_CharsToLines(t *testing.T) {
 	assertDiffEqual(t, []Diff{
 		Diff{DiffDelete, string(lineList)}}, actual)
 }
-
